@@ -106,7 +106,10 @@ export default memo(function GuessGrid({ guesses, answerName, lang }: GuessGridP
           <div className="tiles min-w-0 py-1 mx-auto" style={{ '--count': maxLen } as CSSProperties}>
             {Array.from({ length: maxLen }).map((_, i) => {
               const ch = (rowData.letters[i] || '').toUpperCase();
-              const fb = rowData.feedback[i] || 'absent';
+              // A correct row is always fully green, even when the winning
+              // guess was written in another language (alias), where
+              // per-position scoring against answerName would not match.
+              const fb = rowData.correct ? 'correct' : (rowData.feedback[i] || 'absent');
               const tileClass = rowData.submitted
                 ? fb === 'correct'
                   ? 'tile-correct'

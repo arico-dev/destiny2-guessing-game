@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import GuessGrid from './components/GuessGrid';
 import Typewriter from './components/Typewriter';
@@ -142,7 +142,7 @@ const L: Record<string, { en: string; es: string }> = {
   totalGames: { en: 'Total Games', es: 'Partidas totales' },
   avgGuesses: { en: 'Avg Guesses', es: 'Prom. intentos' },
   maxAttemptsReached: { en: `Maximum attempts (${MAX_ATTEMPTS}) reached. Start a new game.`, es: `Máximo de intentos (${MAX_ATTEMPTS}) alcanzado. Empieza una partida nueva.` },
-  noExotics: { en: 'No exotic weapons loaded to select from.', es: 'No se han cargado armas exóticas para seleccionar.' },
+  noExotics: { en: 'No items loaded for this category.', es: 'No se han cargado items para esta categoría.' },
   attempts: { en: 'Attempt {current}/{max}', es: 'Intento {current}/{max}' },
   wrongGuess: { en: 'Wrong guess. Try again!', es: 'Incorrecto. ¡Inténtalo de nuevo!' },
   noMatch: { en: 'No weapon matches that name', es: 'Ningún arma coincide con ese nombre' },
@@ -154,7 +154,7 @@ const L: Record<string, { en: string; es: string }> = {
   share: { en: 'Share Result', es: 'Compartir' },
   copied: { en: 'Result copied!', es: '¡Resultado copiado!' },
   copyFailed: { en: 'Could not copy the result', es: 'No se pudo copiar el resultado' },
-  resultLine: { en: '{mode} · {outcome} in {guesses}/{max} guesses', es: '{mode} · {outcome} en {guesses}/{max} intentos' },
+  resultLine: { en: '{cat} · {mode} · {outcome} in {guesses}/{max} guesses', es: '{cat} · {mode} · {outcome} en {guesses}/{max} intentos' },
   guessed: { en: 'Guessed', es: 'Adivinado' },
   notGuessed: { en: 'Not guessed', es: 'No adivinado' },
   footerNote: { en: 'Made with Destiny 2 data from Bungie · Wordle-style guessing game', es: 'Hecho con datos de Destiny 2 de Bungie · Juego de adivinar estilo Wordle' },
@@ -204,6 +204,10 @@ function getBrowserLang(): string {
   if (typeof navigator === 'undefined') return 'es';
   return (navigator.languages && navigator.languages[0]) || navigator.language || 'es';
 }
+
+// No-op subscription: the browser language is read once per mount and never
+// changes during a session, so there is nothing to subscribe to.
+const subscribeBrowserLang = () => () => {};
 
 // Pick the Spanish manifest locale from the browser language: Spain keeps "es",
 // any other Spanish variant (es-mx, es-ar, es-cl...) uses Latin American "es-mx".
@@ -276,8 +280,12 @@ export default function Home() {
   });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [lang, setLang] = useState<'en' | 'es'>('es');
-  const [locale, setLocale] = useState<string>('es');
+  // Browser language as an external snapshot: the server snapshot stays 'es'
+  // so prerendered markup matches, then the client re-renders with the real
+  // value after hydration. `langOverride` is only set from user handlers, so
+  // the active language/locale are plain render-time derivations.
+  const browserLang = useSyncExternalStore(subscribeBrowserLang, getBrowserLang, () => 'es');
+  const [langOverride, setLangOverride] = useState<'en' | 'es' | null>(null);
   const [prevItemDefs, setPrevItemDefs] = useState<ItemDefMap | null>(null);
   const [enItemDefs, setEnItemDefs] = useState<ItemDefMap | null>(null);
   const [isShaking, setIsShaking] = useState(false);
@@ -290,7 +298,10 @@ export default function Home() {
   const fetchingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'info') => {
+  const lang: 'en' | 'es' = langOverride ?? (browserLang.toLowerCase().slice(0, 2) === 'es' ? 'es' : 'en');
+  const locale = lang === 'en' ? 'en' : resolveSpanishLocale(browserLang);
+
+  const showToast = useCallback((message: string, type: 'error' | 'success' | 'info' = 'info') => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToastExiting(false);
     setToast({ message, type });
@@ -298,15 +309,15 @@ export default function Home() {
       setToastExiting(true);
       setTimeout(() => { setToast(null); setToastExiting(false); }, 200);
     }, 4000);
-  };
+  }, []);
 
-  const triggerShake = () => {
+  const triggerShake = useCallback(() => {
     setIsShaking(true);
     if (shakeTimeoutRef.current) clearTimeout(shakeTimeoutRef.current);
     shakeTimeoutRef.current = setTimeout(() => setIsShaking(false), 500);
-  };
+  }, []);
 
-  const t = (key: string, vars?: Record<string, string | number>) => {
+  const t = useCallback((key: string, vars?: Record<string, string | number>) => {
     const entry = L[key];
     if (!entry) return key;
     let s = lang === 'en' ? entry.en : entry.es;
@@ -316,7 +327,7 @@ export default function Home() {
       });
     }
     return s;
-  };
+  }, [lang]);
 
   // Picks the translation key for the current category.
   const catKey = useCallback((weapons: string, armor: string, perks: string) =>
@@ -324,36 +335,17 @@ export default function Home() {
   [category]);
 
   useEffect(() => {
-    if (typeof navigator === 'undefined') return;
-    try {
-      const nav = getBrowserLang();
-      const isEs = String(nav).toLowerCase().slice(0, 2) === 'es';
-      const detectedLang: 'en' | 'es' = isEs ? 'es' : 'en';
-      const detectedLocale = isEs ? resolveSpanishLocale(nav) : 'en';
-      if (detectedLang !== 'es' || detectedLocale !== 'es') {
-        setLang(detectedLang);
-        setLocale(detectedLocale);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  // Autofocus the guess input whenever a new round starts (new answer hash).
+  // The input mounts with the playing state, so focus from an effect.
+  const answerHash = answer?.hash;
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (gameStatus !== 'playing' || !answer) return;
-      if (e.key === 'h' || e.key === 'H') { e.preventDefault(); getHint(); }
-      if (e.key === 's' || e.key === 'S') { e.preventDefault(); skipWeapon(); }
-      if (e.key === '/') { e.preventDefault(); searchInputRef.current?.focus(); }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [gameStatus, answer, hintsUsed]);
+    if (gameStatus === 'playing' && answerHash != null) {
+      searchInputRef.current?.focus();
+    }
+  }, [gameStatus, answerHash]);
 
   const loreText = useMemo(() => {
     if (!answer) return null;
@@ -641,11 +633,9 @@ export default function Home() {
   // When language changes, re-fetch localized definitions preserving the current answer if any
   const changeLang = (next: 'en' | 'es') => {
     if (next === lang) return;
-    const nextLocale = next === 'en' ? 'en' : resolveSpanishLocale(getBrowserLang());
-    setLang(next);
-    setLocale(nextLocale);
+    setLangOverride(next);
     if (itemDefs) {
-      fetchAllDefinitions(nextLocale, answer?.hash || null);
+      fetchAllDefinitions(next === 'en' ? 'en' : resolveSpanishLocale(getBrowserLang()), answer?.hash || null);
     }
   };
 
@@ -679,7 +669,7 @@ export default function Home() {
     setError(null);
   };
 
-  const getHint = () => {
+  const getHint = useCallback(() => {
     if (!answer || hintsUsed >= 3) {
       if (hintsUsed >= 3) showToast(t('noMoreHints'), 'info');
       return;
@@ -697,9 +687,9 @@ export default function Home() {
 
     setRevealedHints(hints);
     setHintsUsed(hintsUsed + 1);
-  };
+  }, [answer, displayName, hintsUsed, t, showToast]);
 
-  const finishGame = (status: GameStatus, guesses: GuessEntry[]) => {
+  const finishGame = useCallback((status: GameStatus, guesses: GuessEntry[]) => {
     setGameStatus(status);
     const won = status === 'won';
     const newStreak = won ? stats.currentStreak + 1 : 0;
@@ -713,12 +703,26 @@ export default function Home() {
     setStats(newStats);
     localStorage.setItem('d2GameStats', JSON.stringify({ v: STATS_VERSION, ...newStats }));
     setConfettiPieces(won ? makeConfetti() : []);
-  };
+  }, [stats]);
 
-  const skipWeapon = () => {
+  const skipWeapon = useCallback(() => {
     if (!answer) return;
     finishGame('skipped', guessHistory);
-  };
+  }, [answer, guessHistory, finishGame]);
+
+  // Global keyboard shortcuts. Declared after getHint/skipWeapon so the
+  // handlers it closes over already exist.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (gameStatus !== 'playing' || !answer) return;
+      if (e.key === 'h' || e.key === 'H') { e.preventDefault(); getHint(); }
+      if (e.key === 's' || e.key === 'S') { e.preventDefault(); skipWeapon(); }
+      if (e.key === '/') { e.preventDefault(); searchInputRef.current?.focus(); }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [gameStatus, answer, getHint, skipWeapon]);
 
   const handleSubmitGuess = (guessedWeapon: SearchableWeapon) => {
     if (!answer || isSubmitting) return;
@@ -841,7 +845,8 @@ export default function Home() {
     if (!answer) return;
     const mode = gameMode === 'words' ? t('wordsOnly') : t('classic');
     const outcome = gameStatus === 'won' ? t('guessed') : t('notGuessed');
-    const line1 = t('resultLine', { mode, outcome, guesses: submittedCount, max: MAX_ATTEMPTS });
+    const cat = `[${t(catKey('catWeapons', 'catArmor', 'catPerks'))}]`;
+    const line1 = t('resultLine', { cat, mode, outcome, guesses: submittedCount, max: MAX_ATTEMPTS });
     const grid = guessHistory
       .filter(g => g.submitted)
       .map(g => (g.correct ? '🟩' : '⬛'))
