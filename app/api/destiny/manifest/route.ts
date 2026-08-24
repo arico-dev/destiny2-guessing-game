@@ -15,15 +15,17 @@ export async function GET() {
       headers: {
         'X-API-Key': apiKey,
       },
+      signal: AbortSignal.timeout(10_000),
       cache: 'force-cache',
       next: { revalidate: 3600 },
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      // Log upstream details server-side only; never leak them to clients.
+      console.error(`Bungie manifest request failed (${response.status}):`, await response.text());
       return NextResponse.json(
-        { error: 'Failed to fetch Destiny Manifest from Bungie API.', details: errorData },
-        { status: response.status }
+        { error: 'Failed to fetch Destiny Manifest from Bungie API.' },
+        { status: 502 }
       );
     }
 
@@ -31,10 +33,11 @@ export async function GET() {
     return NextResponse.json(data, {
       headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=60' },
     });
-    
+
   } catch (error) {
+    console.error('Unexpected error fetching Destiny Manifest:', error);
     return NextResponse.json(
-      { error: 'An unexpected error occurred.', details: error instanceof Error ? error.message : String(error) },
+      { error: 'An unexpected error occurred.' },
       { status: 500 }
     );
   }
