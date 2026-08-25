@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { CSSProperties } from 'react';
+import { MAX_ATTEMPTS, MIN_ROWS } from '../constants';
 
 interface GuessEntry {
   guess: string;
@@ -42,9 +43,6 @@ function scoreGuess(guess: string, answer: string): Feedback[] {
 
   return result;
 }
-
-const MAX_ATTEMPTS = 5;
-const MIN_ROWS = 5;
 
 export default memo(function GuessGrid({ guesses, answerName, lang }: GuessGridProps) {
   const normalizedAnswer = norm(answerName || '');
