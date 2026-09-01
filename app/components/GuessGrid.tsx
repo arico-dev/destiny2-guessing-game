@@ -131,7 +131,7 @@ export default memo(function GuessGrid({ guesses, answerName, lang }: GuessGridP
             })}
           </div>
           <div className="min-h-5 flex items-center justify-center text-sm font-medium pt-1">
-            {rowData.correct && <span className="text-green-300">✓ {lang === 'es' ? 'Correcto' : 'Correct'}</span>}
+            {rowData.correct && <span className="text-win">✓ {lang === 'es' ? 'Correcto' : 'Correct'}</span>}
           </div>
         </div>
       ))}

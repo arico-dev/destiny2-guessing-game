@@ -43,7 +43,7 @@ export default function Typewriter({
   return (
     <span aria-live="off">
       {text}
-      <span aria-hidden="true" className="inline-block w-0.5 h-4 align-middle ml-0.5 bg-gray-400 animate-blink" />
+      <span aria-hidden="true" className="inline-block w-0.5 h-4 align-middle ml-0.5 bg-[color:var(--text-muted)] animate-blink" />
     </span>
   );
 }

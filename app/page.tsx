@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef, useCallback, useSyncExternalStore
 import Image from 'next/image';
 import GuessGrid from './components/GuessGrid';
 import Typewriter from './components/Typewriter';
-import { LightbulbIcon, SkipForwardIcon, AlertTriangleIcon, Share2Icon, StarIcon } from './components/Icons';
+import { LightbulbIcon, SkipForwardIcon, AlertTriangleIcon, Share2Icon, StarIcon, SunIcon, MoonIcon } from './components/Icons';
 import { getCached, setCached } from './lib/manifestCache';
 import { MAX_ATTEMPTS } from './constants';
 import type { DestinyWeapon, RawItemDef, ItemDefMap, GuessEntry, SearchableWeapon, GameStats, GameStatus, ConfettiPiece } from './types';
@@ -61,6 +61,21 @@ export default function Home() {
   const [isShaking, setIsShaking] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [toastExiting, setToastExiting] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof document === 'undefined') return 'dark';
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  });
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('d2Theme', next);
+    } catch {
+      // storage unavailable
+    }
+  };
 
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -660,10 +675,10 @@ export default function Home() {
       <div className="w-full max-w-5xl">
         {/* Header */}
         <header className="text-center mb-6 sm:mb-8 mt-4 sm:mt-8 animate-fade-up">
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1 bg-gradient-to-r from-blue-400 via-purple-400 to-yellow-300 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">
             {t('title')}
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-soft">
             {t('subtitlePrefix')}{' '}
             <Typewriter key={lang} words={[`${t('subtitleWeapons')}?`, `${t('subtitleArmor')}?`, `${t('subtitlePerks')}?`]} />
           </p>
@@ -695,6 +710,16 @@ export default function Home() {
             <button type="button" onClick={() => changeLang('es')} className={lang === 'es' ? 'active' : ''}>ES</button>
           </div>
 
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="btn btn-ghost px-3"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          >
+            {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+          </button>
+
           {!(answer && gameStatus === 'playing') && (
             <div className="segmented" role="group" aria-label="Category">
               <button type="button" onClick={() => changeCategory('weapons')} className={category === 'weapons' ? 'active' : ''}>
@@ -709,7 +734,7 @@ export default function Home() {
             </div>
           )}
         </div>
-        <p className="text-center text-sm text-gray-400 mb-6 animate-fade-up">
+        <p className="text-center text-sm text-soft mb-6 animate-fade-up">
           {t(gameMode === 'words'
             ? (category === 'armor' ? 'wordsArmorDesc' : category === 'perks' ? 'wordsPerksDesc' : 'wordsWeaponsDesc')
             : (category === 'armor' ? 'classicArmorDesc' : category === 'perks' ? 'classicPerksDesc' : 'classicWeaponsDesc'),
@@ -722,12 +747,12 @@ export default function Home() {
             <div
               role={toast.type === 'error' ? 'alert' : 'status'}
               aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
-              className={`${toastExiting ? 'animate-float-out' : 'animate-float-in'} mb-4 px-4 py-3 rounded-lg border text-sm font-medium cursor-pointer ${
+              className={`${toastExiting ? 'animate-float-out' : 'animate-float-in'} toast ${
                 toast.type === 'error'
-                  ? 'bg-red-900/40 border-red-500/40 text-red-200'
+                  ? 'toast-error'
                   : toast.type === 'success'
-                    ? 'bg-green-900/40 border-green-500/40 text-green-200'
-                    : 'bg-blue-900/40 border-blue-500/40 text-blue-200'
+                    ? 'toast-success'
+                    : 'toast-info'
               }`}
               onClick={() => { if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current); setToastExiting(true); setTimeout(() => { setToast(null); setToastExiting(false); }, 200); }}
             >
@@ -737,7 +762,7 @@ export default function Home() {
 
           {/* Persistent error */}
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-lg border border-red-500/40 bg-red-900/40 text-red-200 text-sm flex items-center justify-between gap-3">
+            <div className="toast toast-error">
               <span className="flex items-center gap-2 flex-shrink-0">
                 <AlertTriangleIcon className="h-3.5 w-3.5 flex-shrink-0" />
                 <span>{error}</span>
@@ -745,7 +770,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setError(null)}
-                className="text-red-300 hover:text-white text-lg leading-none p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                className="text-[1.25rem] leading-none p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Dismiss"
               >
                 ×
@@ -764,19 +789,19 @@ export default function Home() {
               </button>
               {isLoading && (
                 <div className="mt-6 space-y-4 max-w-sm mx-auto">
-                  <div className="h-4 bg-gray-700/60 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-700/60 rounded animate-pulse"></div>
-                  <div className="h-32 bg-gray-700/60 rounded animate-pulse"></div>
+                  <div className="h-4 surface-soft rounded animate-pulse"></div>
+                  <div className="h-4 surface-soft rounded animate-pulse"></div>
+                  <div className="h-32 surface-soft rounded animate-pulse"></div>
                 </div>
               )}
-              <p className="text-sm text-gray-400 mt-2">{t('loadingNote')}</p>
+              <p className="text-sm text-soft mt-2">{t('loadingNote')}</p>
             </div>
           )}
 
           {itemDefs && categoryPool.length > 0 && !answer && (
             <div className="card mt-2 p-6 text-center animate-fade-up">
-              <p className="text-2xl font-bold text-yellow-300">{categoryPool.length}</p>
-              <p className="text-gray-400 mb-5">
+              <p className="text-2xl font-bold text-accent">{categoryPool.length}</p>
+              <p className="text-soft mb-5">
                 {t(category === 'armor' ? 'loadedArmor' : category === 'perks' ? 'loadedPerks' : 'loadedWeapons', { n: categoryPool.length })}
               </p>
               <button
@@ -794,7 +819,7 @@ export default function Home() {
               {/* Guess grid */}
               {guessHistory.length > 0 && (
                 <div className="card p-5 sm:p-6">
-                  <h3 className="text-sm font-semibold mb-4 text-gray-400 uppercase tracking-wider">{t('yourGuesses')}</h3>
+                  <h3 className="text-sm font-semibold mb-4 text-soft uppercase tracking-wider">{t('yourGuesses')}</h3>
                   {gameMode === 'words' ? (
                     <GuessGrid
                       guesses={guessRows}
@@ -808,8 +833,8 @@ export default function Home() {
               )}
 
               {/* Guess panel */}
-              <div className="card p-6 sm:p-8 text-center border-t-2 border-t-yellow-600">
-                <h2 className="text-xl font-semibold mb-5 text-yellow-400">{t(catKey('guessTheWeapon', 'guessTheArmor', 'guessThePerk'))}</h2>
+              <div className="card p-6 sm:p-8 text-center border-t-2 border-t-accent">
+                <h2 className="text-xl font-semibold mb-5 text-accent">{t(catKey('guessTheWeapon', 'guessTheArmor', 'guessThePerk'))}</h2>
 
                 {gameMode === 'classic' && answer.displayProperties.icon && (
                   <Image
@@ -823,18 +848,18 @@ export default function Home() {
                 )}
 
                 {gameMode === 'words' && loreText && (
-                  <div className="bg-gray-800/70 border border-gray-700 rounded-lg p-4 mb-5 text-left min-h-24">
-                    <p className="text-gray-300 text-sm leading-relaxed italic border-l-2 border-yellow-500/50 pl-3">
+                  <div className="lore-box">
+                    <p className="text-soft text-sm leading-relaxed italic border-l-2 border-accent/50 pl-3">
                       {loreText}
                     </p>
                   </div>
                 )}
 
                 {revealedHints.length > 0 && (
-                  <div className="bg-blue-900/30 border-l-4 border-blue-400 rounded-r-lg p-3 mb-5 text-left animate-fade-up">
+                  <div className="hint-box animate-fade-up">
                     {revealedHints.map((hint, idx) => (
-                      <p key={idx} className="text-blue-300 text-sm mb-1 flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-blue-500/30 flex items-center justify-center text-blue-200 flex-shrink-0">
+                      <p key={idx} className="text-accent text-sm mb-1 flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent flex-shrink-0">
                           <StarIcon className="h-3 w-3" />
                         </span>
                         {hint}
@@ -843,7 +868,7 @@ export default function Home() {
                   </div>
                 )}
 
-                <p className="text-sm text-gray-400 mb-3" role="status">
+                <p className="text-sm text-soft mb-3" role="status">
                   {t('attempts', { current: submittedCount, max: MAX_ATTEMPTS })}
                 </p>
                 <form onSubmit={handleFormSubmit} className="relative space-y-4">
@@ -863,8 +888,8 @@ export default function Home() {
                     placeholder={gameMode === 'words'
                       ? t(catKey('inputWordsPlaceholder', 'inputWordsArmorPlaceholder', 'inputWordsPerkPlaceholder'))
                       : t(catKey('inputClassicPlaceholder', 'inputClassicArmorPlaceholder', 'inputClassicPerkPlaceholder'))}
-                    className={`w-full px-4 py-3 rounded-lg bg-gray-800/70 text-sm text-white placeholder-gray-500 border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
-                      isShaking ? 'border-red-500 animate-shake' : 'border-gray-700 focus:border-blue-500'
+                    className={`input-field ${
+                      isShaking ? 'border-red-500 animate-shake' : ''
                     }`}
                   />
                   {gameMode === 'classic' && (
@@ -906,9 +931,7 @@ export default function Home() {
 
           {answer && (gameStatus === 'won' || gameStatus === 'skipped' || gameStatus === 'lost') && (
             <div className={`card mt-4 p-4 sm:p-6 md:p-8 text-center border-2 animate-pop-in ${
-              gameStatus === 'won'
-                ? 'border-green-500/60'
-                : 'border-orange-500/60'
+              gameStatus === 'won' ? 'card-win' : 'card-lose'
             }`}>
               <div className="mb-4 flex items-center justify-center">
                 {gameStatus === 'won'
@@ -928,7 +951,7 @@ export default function Home() {
                     />}
               </div>
               <h2 className={`text-3xl font-bold mb-3 ${
-                gameStatus === 'won' ? 'text-green-400' : 'text-orange-400'
+                gameStatus === 'won' ? 'text-win' : 'text-lose'
               }`}>
                 {gameStatus === 'won' ? t('youGotIt') : (gameStatus === 'skipped' ? t(catKey('weaponSkipped', 'armorSkipped', 'perkSkipped')) : t('youLost'))}
               </h2>
@@ -942,16 +965,16 @@ export default function Home() {
                   className="h-32 w-32 mx-auto mb-4 object-contain drop-shadow-[0_0_20px_rgba(245,197,66,0.25)]"
                 />
               )}
-              <p className="text-lg mb-2 text-gray-200">
+              <p className="text-lg mb-2">
                 {t(catKey('theWeaponWas', 'theArmorWas', 'thePerkWas'))}{' '}
-                <span className={`font-bold ${gameStatus === 'won' ? 'text-green-300' : 'text-orange-300'}`}>
+                <span className={`font-bold ${gameStatus === 'won' ? 'text-win' : 'text-lose'}`}>
                   {displayName}
                 </span>
               </p>
               {gameStatus !== 'skipped' && (
-                <p className="text-gray-400 mb-8">
+                <p className="text-soft mb-8">
                   {t('youTook')}{' '}
-                  <span className="font-bold text-white">{submittedCount}</span>{' '}
+                  <span className="font-bold">{submittedCount}</span>{' '}
                   {lang === 'en' ? `guess${submittedCount !== 1 ? 'es' : ''}` : `intento${submittedCount !== 1 ? 's' : ''}`}.
                 </p>
               )}
@@ -968,22 +991,22 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="mb-8 p-4 bg-gray-800/60 rounded-xl grid grid-cols-2 gap-4 max-w-md mx-auto">
-                <div className="text-center">
-                  <p className="text-gray-400 text-xs uppercase tracking-wider">{t('currentStreak')}</p>
-                  <p className="text-2xl font-bold text-white">{stats.currentStreak}</p>
+              <div className="mb-8 grid grid-cols-2 gap-3 max-w-md mx-auto">
+                <div className="stat-card text-center">
+                  <p className="text-soft text-xs uppercase tracking-wider">{t('currentStreak')}</p>
+                  <p className="text-2xl font-bold">{stats.currentStreak}</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-gray-400 text-xs uppercase tracking-wider">{t('bestStreak')}</p>
-                  <p className="text-2xl font-bold text-white">{stats.bestStreak}</p>
+                <div className="stat-card text-center">
+                  <p className="text-soft text-xs uppercase tracking-wider">{t('bestStreak')}</p>
+                  <p className="text-2xl font-bold">{stats.bestStreak}</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-gray-400 text-xs uppercase tracking-wider">{t('totalGames')}</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalGames}</p>
+                <div className="stat-card text-center">
+                  <p className="text-soft text-xs uppercase tracking-wider">{t('totalGames')}</p>
+                  <p className="text-2xl font-bold">{stats.totalGames}</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-gray-400 text-xs uppercase tracking-wider">{t('avgGuesses')}</p>
-                  <p className="text-2xl font-bold text-white">
+                <div className="stat-card text-center">
+                  <p className="text-soft text-xs uppercase tracking-wider">{t('avgGuesses')}</p>
+                  <p className="text-2xl font-bold">
                     {stats.totalGames > 0 ? (stats.totalGuesses / stats.totalGames).toFixed(1) : '—'}
                   </p>
                 </div>
@@ -1004,7 +1027,7 @@ export default function Home() {
         </div>
       </div>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-[#0a0f1c]/90 backdrop-blur-sm border-t border-white/10 px-4 py-1.5 sm:py-3 text-center text-[10px] sm:text-xs text-gray-500" style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}>
+      <footer className="footer-bar fixed bottom-0 left-0 right-0 z-40 px-4 py-1.5 sm:py-3 text-center text-[10px] sm:text-xs text-muted" style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}>
         {t('footerNote')}
       </footer>
     </main>

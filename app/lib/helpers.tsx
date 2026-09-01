@@ -65,7 +65,9 @@ export function GuessHistoryList({ guesses }: { guesses: { guess: string; correc
         <li
           key={i}
           className={`px-3 py-2.5 rounded-lg text-sm flex items-center justify-between border ${
-            g.correct ? 'bg-green-900/30 border-green-500/40 text-green-200' : 'bg-gray-800/50 border-gray-700 text-gray-300'
+            g.correct
+              ? 'border-[color:color-mix(in_srgb,var(--hit)_45%,transparent)] text-win'
+              : 'border-[color:var(--border)] bg-transparent text-soft'
           }`}
         >
           <span>{g.guess}</span>
