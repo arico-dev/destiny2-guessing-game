@@ -1,6 +1,6 @@
 # Destiny 2 Guessing Game
 
-A Wordle-style guessing game for Destiny 2 items powered by the Bungie API.
+A Wordle-style guessing game for Destiny 2, powered by live item data from the Bungie API. Test your Destiny knowledge by identifying exotic weapons, exotic armor, and legendary perks.
 
 ## How to Play
 
@@ -21,34 +21,19 @@ Guess the hidden Destiny 2 item in 5 attempts. Each wrong guess reveals hints ab
 
 Full English and Spanish support. The game detects your browser language automatically. Each session is locked to one language for consistent gameplay.
 
-## Getting Started
-
-```bash
-npm install
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-## Tech Stack
-
-- **Next.js 16** + Turbopack
-- **React 19** with hooks
-- **Tailwind CSS 4**
-- **Bungie API** — manifest data for all Destiny 2 items
-- **IndexedDB** — client-side cache for API responses
-- **localStorage** — persistent stats tracking
-
 ## Features
 
 - Wordle-style tile grid with flip animations
+- Single accent palette with light and dark mode
 - Category switching mid-session
-- Hint system (stat reveals, slot type, rarity)
+- Hint system (stat reveals, first letter, word count, name length)
 - Confetti on correct guess
+- Share result to clipboard
 - Keyboard shortcuts (H = hint, S = skip, / = focus input)
 - Responsive design (mobile + desktop)
 - Accessible (ARIA roles, keyboard navigation, screen reader support)
-- CSP security headers
+- Lightweight currency: all item data cached client-side from the Destiny manifest
+- Persistent stats tracking (streaks, total games, average guesses)
 
 ## License
 
