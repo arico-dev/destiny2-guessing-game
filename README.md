@@ -35,6 +35,10 @@ Full English and Spanish support. The game detects your browser language automat
 - Lightweight currency: all item data cached client-side from the Destiny manifest
 - Persistent stats tracking (streaks, total games, average guesses)
 
+## Disclaimer
+
+Destiny 2 is a trademark of Bungie, Inc. This project is a fan-made game and is not affiliated with, endorsed by, or sponsored by Bungie. All item names, images, and related content are the property of their respective owners and are used for informational purposes.
+
 ## License
 
 MIT
